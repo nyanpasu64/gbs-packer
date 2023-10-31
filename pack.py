@@ -1,4 +1,5 @@
 from pathlib import Path
+import os.path
 import sys
 import struct
 import json
@@ -41,10 +42,33 @@ def unpack(file_path):
         if len(file.read(1)) > 0:
             print(f"Extra data following archive, at byte {bytes_read}", file=sys.stderr)
 
+def pack(dirname, out_name):
+    dirname = Path(dirname)
+    filenames = dirname.iterdir()
+
+    objects = []
+
+    for name in filenames:
+        print(name)
+        if not name.is_file():
+            continue
+        with name.open('rb') as f:
+            objects.append(('/' + name.name, f.read()))
+
+    header_dict = {obj_name: len(obj_data) for (obj_name, obj_data) in objects}
+    header = json.dumps(header_dict).encode("utf-8")
+    print(header)
+
+    with open(out_name, "wb") as of:
+        of.write(struct.pack(">I", len(header)))
+        of.write(header)
+        for (_, obj_data) in objects:
+            of.write(obj_data)
+
 def help(code=1):
     print("Usage: python script.py ...")
     print("    unpack (filename)")
-    print("    pack (dirname)")
+    print("    pack (dirname) (new filename)")
     sys.exit(code)
 
 
@@ -60,6 +84,14 @@ if __name__ == '__main__':
             help()
         filename = sys.argv[2]
         unpack(filename)
+
+    elif command == "pack":
+        if len(argv) <= 3:
+            help()
+        dirname = sys.argv[2]
+        out_name = sys.argv[3]
+        pack(dirname, out_name)
+
 
     else:
         help()
